@@ -132,6 +132,52 @@ public class Application {
 						FileOutputPublishingUnit.publishData(System.getProperty("user.name")+","+orderID+","+operation+","+CommonUtils.getDate()+","+status);
 					}
 					break;
+				case "abortRecreateGeneric":
+					for(int i = 0; i<inputSet.size(); i++){
+						String status = "unsuccessful";
+						if(inputSet.toArray()[i] != null && !inputSet.toArray()[i].equals("")){
+							System.out.println("applying workaround for order-id : "+(String)inputSet.toArray()[i]);
+							
+							String unparsedString = (String)inputSet.toArray()[i];
+							String[] parsedStrings = unparsedString.split("[\t,]+");
+							orderID = parsedStrings[0];
+							
+							boolean result = workaroundsAPI.abortRecreateGeneric(orderID);
+							
+							if(result){
+								status="successful";
+							}
+						}else{
+							status="unsuccessful";
+						}
+						System.out.println("Status : "+status);
+						
+						FileOutputPublishingUnit.publishData(System.getProperty("user.name")+","+orderID+","+operation+","+CommonUtils.getDate()+","+status);
+					}
+					break;
+				case "createOrder":
+					for(int i = 0; i<inputSet.size(); i++){
+						String status = "unsuccessful";
+						if(inputSet.toArray()[i] != null && !inputSet.toArray()[i].equals("")){
+							System.out.println("applying workaround for order-id : "+(String)inputSet.toArray()[i]);
+							
+							String unparsedString = (String)inputSet.toArray()[i];
+							String[] parsedStrings = unparsedString.split("[\t,]+");
+							orderID = parsedStrings[0];
+							orderView = parsedStrings[1];
+							boolean result = workaroundsAPI.createOrder(orderID,orderView);
+							
+							if(result){
+								status="successful";
+							}
+						}else{
+							status="unsuccessful";
+						}
+						System.out.println("Status : "+status);
+						
+						FileOutputPublishingUnit.publishData(System.getProperty("user.name")+","+orderID+","+operation+","+CommonUtils.getDate()+","+status);
+					}
+					break;
 					
 				case "createOrderSOM":
 					for(int i = 0; i<inputSet.size(); i++){

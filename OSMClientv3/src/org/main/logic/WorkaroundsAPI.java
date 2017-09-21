@@ -25,6 +25,9 @@ public interface WorkaroundsAPI {
 	public boolean updateOrderwithAddData(String orderId, String view, String path, String data);
 	public boolean getCreationView(String orderSource, String orderType, String namespace, String version);
 	public void getOrderByTask(String orderId, String task);
+	public boolean abortRecreateGeneric(String orderId);
+	public boolean queryOrderGeneric(String orderId);
+	
 	
 	//Repush API
 	public boolean getOrderAtTask(String orderId, String task);
@@ -34,7 +37,7 @@ public interface WorkaroundsAPI {
 	public boolean receiveOrder(String orderId, String orderhistId);
 	public boolean acceptOrder(String orderId, String orderhistId);
 	public boolean updateOrderAddNode(String orderId, String view, String path, String nodeName, String nodeValue);
-	public boolean copyOrder(String originalOrderID, String orderSource, String orderType, String reference, String priority, String namespace, String version);
+	public boolean copyOrder(String originalOrderID, String orderSource, String orderType, String reference, String priority, String namespace, String version); 
 	
 	
 	//Final Repush Methods

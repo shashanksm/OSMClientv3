@@ -54,6 +54,7 @@ public class WorkaroundsAPIImpl implements WorkaroundsAPI{
 	private String rOrderType;
 	private String rSpecificationPath;
 	private String rNewOrderId;
+	private String rTaskId;
 	
 	private List<String> rStatuses;
 	
@@ -209,6 +210,44 @@ public class WorkaroundsAPIImpl implements WorkaroundsAPI{
 			
 			
 			if (nodes.getLength() == 1){
+				retval = (Element)nodes.item(0);
+				logger.trace("ebm extraction successful");
+			}else{
+				logger.error("CAUTION : number of ebm elements is other than one : "+nodes.getLength()+" elements found");
+			}
+		} catch (XPathExpressionException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		
+		
+		return retval;
+	}
+	
+	public static Element getEBMDataGeneric(Element response){
+		logger.trace("call made to extract EBMGeneric element");
+		Element retval = null;
+		///   //Envelope/Body/GetOrderResponse/Data/_root/messageXmlData/ProcessProvisioningOrderEBM
+		//      /*[local-name()=\"\"]
+		
+		
+		logger.trace("extracting using xpath");
+		String expression = "//*[local-name()=\"Envelope\"]"
+				+ " /*[local-name()=\"Body\"]"
+				+ "/*[local-name()=\"GetOrderResponse\"]"
+				+ "/*[local-name()=\"Data\"]"
+				+ "/*[local-name()=\"_root\"]"
+				+ " /*[local-name()=\"messageXmlData\"]"
+				+ "/*[contains(local-name(), \"EBM\")]";
+		
+		XPath xpath = XPathFactory.newInstance().newXPath();
+		
+		NodeList nodes;
+		try {
+			nodes = (NodeList) xpath.compile(expression).evaluate(response, XPathConstants.NODESET);
+			
+			
+			if (nodes.getLength() > 0){
 				retval = (Element)nodes.item(0);
 				logger.trace("ebm extraction successful");
 			}else{
@@ -448,8 +487,84 @@ public class WorkaroundsAPIImpl implements WorkaroundsAPI{
 		return ret;
 	}
 	
-	@Override
-	public boolean createOrder(String orderId, String view) {
+	public boolean createOrderGeneric(Document responseDocument) {
+		// TODO Auto-generated method stub
+		boolean ret = false;
+		
+		
+		Document requestDocument = null;
+		HttpPost request;
+		CloseableHttpResponse response = null;
+		String requestBody;
+		try {
+			
+			//ChangeRequiredHere
+			requestDocument = DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(new InputSource(new FileInputStream(service.getXmlRequestTemplate("req_createOrder.xml"))));
+			logger.trace("parsing and generating CreateOrderXML");
+			Element root = requestDocument.getDocumentElement();
+			
+			NodeList createOrderElements = root.getElementsByTagName("ord:CreateOrder");
+			if(createOrderElements.getLength() == 1){
+				
+				createOrderElements.item(0).appendChild(requestDocument.importNode(getEBMDataGeneric(responseDocument.getDocumentElement()), true));
+				
+				logger.trace("invoking SOAP action");
+				
+				requestBody = CommonUtils.stringXML(requestDocument);
+				
+				request = service.prepareRequest(requestBody, "CreateOrder");
+				
+				logger.trace("invoking soap-action");
+				
+				response = (CloseableHttpResponse) service.sendRequest(request);
+				
+				logger.trace(response.getStatusLine());
+				if(response.getStatusLine().getStatusCode() == 200){
+					ret = true;
+				}else{
+					ret=false;
+				}
+				
+			}else{
+				logger.error("CAUTION : number of CreateOrder elements is other than 1");
+				ret=false;
+			}
+			
+			
+			
+			
+		} catch (FileNotFoundException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (SAXException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (ParserConfigurationException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (TransformerException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}finally {
+			try {
+				response.close();
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
+		
+		return ret;
+	}
+	
+	
+	
+	
+	//in progress
+	public boolean createOrderGeneric(String orderId, String view) {
 		// TODO Auto-generated method stub
 		
 		boolean ret = false;
@@ -533,7 +648,6 @@ public class WorkaroundsAPIImpl implements WorkaroundsAPI{
 		return ret;
 	}
 
-	
 	@Override
 	public boolean abortRecreateSOM(String orderId) {
 		
@@ -3225,6 +3339,284 @@ public class WorkaroundsAPIImpl implements WorkaroundsAPI{
 			ret = completeOrder(rOrderId, rOrderHistId, "submit");
 		else
 			logger.error("copyOrder failed");
+		return ret;
+	}
+
+	@Override
+	public boolean queryOrderGeneric(String orderId) {
+		boolean ret = false;
+		
+		logger.trace("queryOrderGeneric called for order-id : "+orderId);
+		Document requestDocument = null;
+		HttpPost request;
+		CloseableHttpResponse response = null;
+		String requestBody;
+		Document responseDocument = null;
+		try {
+			
+			requestDocument = DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(new InputSource(new FileInputStream(xmlapi.getXmlRequestTemplate("QueryGeneric.xml"))));
+			
+			NodeList orderIdElements = requestDocument.getDocumentElement().getElementsByTagName("OrderID");
+			
+			if(orderIdElements.getLength() != 1){
+				logger.error("number of order-id elements in request is other than one : "+orderIdElements.getLength());
+				return false;
+			}
+			
+			orderIdElements.item(0).setTextContent(orderId);
+			
+			logger.trace("sending xml request");
+			
+			requestBody = CommonUtils.stringXML(requestDocument);
+			request = xmlapi.prepareRequest(requestBody);
+			response = (CloseableHttpResponse) xmlapi.sendXMLRequest(request);
+			
+			logger.trace("response status : "+response.getStatusLine());
+			
+			if(response.getStatusLine().getStatusCode() != 200){
+				return false;
+			}
+			
+			responseDocument = DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(new InputSource(response.getEntity().getContent()));
+			
+			Element root = responseDocument.getDocumentElement();
+			
+			if(root.getTagName().equals("Query.Error")){
+				logger.error(root.getElementsByTagName("Error").item(0).getTextContent());
+				return false;
+			}
+			
+			root = (Element) root.getElementsByTagName("Orderdata").item(0);
+			
+			
+			rOrderId = orderId;
+			rOrderHistId = root.getElementsByTagName("_order_hist_seq_id").item(0).getTextContent();
+			
+			rNamespace = root.getElementsByTagName("_namespace").item(0).getTextContent();
+			rVersion = root.getElementsByTagName("_version").item(0).getTextContent();
+			rOrderSource = root.getElementsByTagName("_order_source").item(0).getTextContent();
+			rOrderType = root.getElementsByTagName("_order_type").item(0).getTextContent();
+			
+			rTaskId = root.getElementsByTagName("_task_id").item(0).getTextContent();
+			
+			ret = true;
+			
+		} catch (FileNotFoundException e) {
+			logger.error("exception occurred : "+e.toString());
+		} catch (SAXException e) {
+			logger.error("exception occurred : "+e.toString());
+		} catch (IOException e) {
+			logger.error("exception occurred : "+e.toString());
+		} catch (ParserConfigurationException e) {
+			logger.error("exception occurred : "+e.toString());
+		} catch (TransformerException e) {
+			logger.error("exception occurred : "+e.toString());
+		}
+		
+		
+		
+		logger.traceExit();
+		return ret;
+	}
+	
+	@Override
+	public boolean abortRecreateGeneric(String orderId) {
+		boolean ret = false;
+		
+		Document requestDocument = null;
+		Document responseDocument = null;
+		HttpPost request;
+		CloseableHttpResponse response = null;
+		String requestBody;
+		ret = queryOrderGeneric(orderId);
+		
+		if(ret) {
+			ret = getCreationView(rOrderSource, rOrderType, rNamespace, rVersion);
+			
+			if(ret) {
+				
+				try {
+					requestDocument = DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(new InputSource(new FileInputStream(service.getXmlRequestTemplate("req_getOrder.xml"))));
+					logger.trace("parsing and generating getOrderXML");
+					Element root = requestDocument.getDocumentElement();
+					NodeList orderIdElements = root.getElementsByTagName("ord:OrderId");
+					if(orderIdElements.getLength() == 1){
+						orderIdElements.item(0).setTextContent(orderId);
+					}else{
+						logger.error("CAUTION : number of order-id elements is other than 1");
+						ret=false;
+					}
+					NodeList viewElements = root.getElementsByTagName("ord:View");
+					if(viewElements.getLength() == 1){
+						viewElements.item(0).setTextContent(rCreationView);
+					}else{
+						logger.error("CAUTION : number of view elements is other than 1");
+						ret=false;
+					}
+					
+					requestBody = CommonUtils.stringXML(requestDocument);
+					
+					request = service.prepareRequest(requestBody, "GetOrder");
+					
+					logger.trace("invoking soap-action");
+					
+					response = (CloseableHttpResponse) service.sendRequest(request);
+					
+					if(response.getStatusLine().getStatusCode() == 200) {
+						responseDocument = DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(new InputSource(response.getEntity().getContent()));
+						logger.trace("extracting EBM data");
+						
+						Element ebmElement = getEBMDataGeneric(responseDocument.getDocumentElement());
+						
+						if(ebmElement!=null){
+							
+							logger.trace("aborting order");
+							ret = abortOrder(orderId);
+							if(ret){
+								
+								logger.trace("proceeding to recreate");
+								
+								
+								
+								
+								ret = createOrderGeneric(responseDocument);
+								
+							}else{
+								logger.error("AbortOrder failed. did not recreate order");
+								return false;
+							}	
+							
+						}else {
+							logger.error("EBM Element not found. did not abort the order or recreate the order");
+							return false;
+						}
+					}else {
+						logger.error("invalid response received from server");
+						return false;
+					}
+					
+				} catch (FileNotFoundException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				} catch (SAXException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				} catch (IOException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				} catch (ParserConfigurationException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				} catch (TransformerException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+				
+				
+			}
+		}
+		
+		return ret;
+	}
+	
+	@Override
+	public boolean createOrder(String orderId, String view) {
+		boolean ret = false;
+		
+		Document requestDocument = null;
+		Document responseDocument = null;
+		HttpPost request;
+		CloseableHttpResponse response = null;
+		String requestBody;
+		ret = queryOrderGeneric(orderId);
+		
+		if(ret) {
+//			ret = getCreationView(rOrderSource, rOrderType, rNamespace, rVersion);
+			ret = true;
+			if(ret) {
+				
+				try {
+					requestDocument = DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(new InputSource(new FileInputStream(service.getXmlRequestTemplate("req_getOrder.xml"))));
+					logger.trace("parsing and generating getOrderXML");
+					Element root = requestDocument.getDocumentElement();
+					NodeList orderIdElements = root.getElementsByTagName("ord:OrderId");
+					if(orderIdElements.getLength() == 1){
+						orderIdElements.item(0).setTextContent(orderId);
+					}else{
+						logger.error("CAUTION : number of order-id elements is other than 1");
+						ret=false;
+					}
+					NodeList viewElements = root.getElementsByTagName("ord:View");
+					if(viewElements.getLength() == 1){
+						viewElements.item(0).setTextContent(view);
+					}else{
+						logger.error("CAUTION : number of view elements is other than 1");
+						ret=false;
+					}
+					
+					requestBody = CommonUtils.stringXML(requestDocument);
+					
+					request = service.prepareRequest(requestBody, "GetOrder");
+					
+					logger.trace("invoking soap-action");
+					
+					response = (CloseableHttpResponse) service.sendRequest(request);
+					
+					if(response.getStatusLine().getStatusCode() == 200) {
+						responseDocument = DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(new InputSource(response.getEntity().getContent()));
+						logger.trace("extracting EBM data");
+						
+						Element ebmElement = getEBMDataGeneric(responseDocument.getDocumentElement());
+						
+						if(ebmElement!=null){
+							
+							logger.trace("aborting order");
+							//ret = abortOrder(orderId);
+							ret = true;
+							if(ret){
+								
+								logger.trace("proceeding to recreate");
+								
+								
+								
+								
+								ret = createOrderGeneric(responseDocument);
+								
+							}else{
+								logger.error("AbortOrder failed. did not recreate order");
+								return false;
+							}	
+							
+						}else {
+							logger.error("EBM Element not found. did not abort the order or recreate the order");
+							return false;
+						}
+					}else {
+						logger.error("invalid response received from server");
+						return false;
+					}
+					
+				} catch (FileNotFoundException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				} catch (SAXException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				} catch (IOException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				} catch (ParserConfigurationException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				} catch (TransformerException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+				
+				
+			}
+		}
+		
 		return ret;
 	}
 }
