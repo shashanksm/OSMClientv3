@@ -1,0 +1,3 @@
+722437662	PMS002.ASAP_DeleteSubscriberFromHLRSurePay_TE
+722894248	PMS002.ASAP_DeleteSubscriberFromHLRSurePay_TE
+725672621	PMS002.ASAP_DeleteSubscriberFromHLRSurePay_TE
