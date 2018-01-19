@@ -51,10 +51,12 @@
 		
 		<Logger name="org.main.logic.WorkaroundsAPIImpl" level="TRACE" additivity="false">
 			<AppenderRef ref="RollingFileAppender" />
+			<AppenderRef ref="STDOUT"></AppenderRef>
 		</Logger>
 		
 		<Logger name="org.main.sei.OSMServiceImpl" level="TRACE" additivity="false">
 			<AppenderRef ref="RollingFileAppender" />
+			<AppenderRef ref="STDOUT"></AppenderRef>
 		</Logger>
 		
 		<Logger name="org.main.sei.OSMServiceFactory" level="TRACE" additivity="false">

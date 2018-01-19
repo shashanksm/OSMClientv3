@@ -6,8 +6,10 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Date;
 import java.util.List;
 import java.util.Properties;
 
@@ -237,7 +239,7 @@ public class WorkaroundsAPIImpl implements WorkaroundsAPI{
 				+ "/*[local-name()=\"GetOrderResponse\"]"
 				+ "/*[local-name()=\"Data\"]"
 				+ "/*[local-name()=\"_root\"]"
-				+ " /*[local-name()=\"messageXmlData\"]"
+				+ "/*[local-name()=\"messageXmlData\" or local-name()=\"messageXMLdata\" or local-name()=\"messageXMLData\"]"
 				+ "/*[contains(local-name(), \"EBM\")]";
 		
 		XPath xpath = XPathFactory.newInstance().newXPath();
@@ -976,6 +978,11 @@ public class WorkaroundsAPIImpl implements WorkaroundsAPI{
 					}
 				}else{
 					logger.error("WARNING : number of TILStatus elements found : " +nodes.getLength());
+					if(nodes.getLength() == 0) {
+						logger.trace("adding TIL Element to request body");
+						String path = "//OrderData/FixedService";
+						ret = updateOrderAddNode(orderId, view, path, "TILStatus", targetStatus);
+					}
 					ret=false;
 				}
 			}else{
@@ -3619,5 +3626,56 @@ public class WorkaroundsAPIImpl implements WorkaroundsAPI{
 		
 		return ret;
 	}
+
+	@Override
+	public boolean vampirePatch(String orderID) {
+		boolean ret = false;
+		logger.trace("vampirePatch called");
+		
+		String task = "PMS017.Vampire_Update_BE";
+		
+		ret = getOrderAtTask(orderID, task);
+		if(ret) {
+			
+			
+			
+			ret = getCreationView(rOrderSource, rOrderType, rNamespace, rVersion);
+			if(ret) {
+				
+				
+				ret = updateOrderwithUpdateData(orderID, rCreationView, "//*[]", "");
+				
+				
+			}
+			
+		}else {
+			logger.error("getOrderAtTask failed");
+		}
+		
+		return ret;
+	}
+
+	@Override
+	public boolean timerDelayWA(String orderID) {
+		boolean ret = false;
+		
+		ret = queryOrderGeneric(orderID);
+		
+		if(!ret) {
+			logger.error("query failed");
+			return false;
+		}
+		
+		ret = getCreationView(rOrderSource, rOrderType, rNamespace, rVersion);
+		
+		org.joda.time.Instant instant = org.joda.time.Instant.now();
+		String nodeValue = instant.toString();
+		String path = "//OrderData/FixedService";
+		String nodeName = "DelayTime";
+		updateOrderAddNode(orderID, rCreationView, path, nodeName, nodeValue);
+		return ret;
+	}
+
+	
 }
 

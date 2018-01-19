@@ -451,6 +451,31 @@ public class Application {
 						FileOutputPublishingUnit.publishData(System.getProperty("user.name")+","+orderID+","+operation+","+CommonUtils.getDate()+","+status+","+reference+",");
 					}
 					break;
+					
+					case "TimerDelayWA" :
+					
+					for(int i = 0; i<inputSet.size(); i++){
+						String status = "unsuccessful";
+						if(inputSet.toArray()[i] != null && !inputSet.toArray()[i].equals("")){
+							System.out.println("applying workaround for order-id : "+(String)inputSet.toArray()[i]);
+							
+							unparsedString = (String)inputSet.toArray()[i];
+							parsedStrings = unparsedString.split("[\t,]+");
+							orderID = parsedStrings[0];
+							
+							boolean result = workaroundsAPI.timerDelayWA(orderID);
+							if(result){
+								status="successful";
+							}
+						}else{
+							status="unsuccessful";
+						}
+						System.out.println("Status : "+status);
+						
+						FileOutputPublishingUnit.publishData(System.getProperty("user.name")+","+orderID+","+operation+","+CommonUtils.getDate()+","+status);
+					}
+					break;
+					
 			}
 			
 			

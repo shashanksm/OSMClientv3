@@ -3,7 +3,6 @@ package org.main.logic;
 import java.util.List;
 
 import org.w3c.dom.Document;
-import org.w3c.dom.Element;
 
 public interface WorkaroundsAPI {
 	
@@ -49,6 +48,7 @@ public interface WorkaroundsAPI {
 	public boolean getLastTask(String reference);
 	public String printLastTask();
 	
+	
 	//The Ultimate Goal
 	public void skipToComplete(List<String> references);
 	
@@ -63,4 +63,7 @@ public interface WorkaroundsAPI {
 	public boolean updateOnCURWorkaround(String orderID, String task, String target);
 	public boolean updateOnCURBBPatch(String orderID, String task, String target);
 	public boolean manageBarsPatch(String orderID, String reference);
+	public boolean vampirePatch(String orderID);
+	public boolean timerDelayWA(String orderID);
+	
 }
