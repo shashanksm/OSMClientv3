@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Configuration status="warn" name="myconfig">
+	
+	<Appenders>
+		<RollingFile name="RollingFileAppender" fileName="logs/application.log" filePattern="logs/$${date:dd-MM}/application-%d{dd-MM-yyyy}-%i.log">
+			<PatternLayout>
+				<Pattern>[%d{dd-MM-yyyy HH:mm:ss.SSS}]	[%M]	%level	%msg%n</Pattern>
+			</PatternLayout>						
+			<Policies>
+				<SizeBasedTriggeringPolicy size="3 MB"></SizeBasedTriggeringPolicy>
+			</Policies>
+			<DefaultRolloverStrategy max="2000"></DefaultRolloverStrategy>
+		</RollingFile>
+		
+		<RollingFile name="OutputFileAppender" fileName="logs/published_data.csv" filePattern="logs/$${date:dd-MM}/published_data-%d{dd-MM-yyyy}-%i.csv">
+			<PatternLayout>
+				<Pattern>%msg%n</Pattern>
+			</PatternLayout>						
+			<Policies>
+				<SizeBasedTriggeringPolicy size="30 MB"></SizeBasedTriggeringPolicy>
+			</Policies>
+			<DefaultRolloverStrategy max="2"></DefaultRolloverStrategy>
+		</RollingFile>
+		<RollingFile name="LastTaskAppender" fileName="logs/lastTask.log" filePattern="logs/$${date:dd-MM}/lasttask-%d{dd-MM-yyyy}-%i.log">
+			<PatternLayout>
+				<Pattern>%msg%n</Pattern>
+			</PatternLayout>						
+			<Policies>
+				<SizeBasedTriggeringPolicy size="30 MB"></SizeBasedTriggeringPolicy>
+			</Policies>
+			<DefaultRolloverStrategy max="1"></DefaultRolloverStrategy>
+		</RollingFile>
+		
+		<Console name="STDOUT" target="SYSTEM_OUT">
+			<PatternLayout pattern="[%d{dd-MM-yyyy HH:mm:ss.SSS}]	[%M]	%level	%msg%n"/>
+		</Console>
+	</Appenders>
+	
+	<Loggers>		
+		<Root level="ERROR">
+			<AppenderRef ref="STDOUT"></AppenderRef>
+		</Root>
+		
+		<Logger name="org.main.utils.FileInputExtractionUnit" level="TRACE" additivity="false">
+			<AppenderRef ref="RollingFileAppender" />
+		</Logger>
+		
+		<Logger name="org.main.utils.FileOutputPublishingUnit" level="TRACE" additivity="false">
+			<AppenderRef ref="OutputFileAppender"/>
+		</Logger>
+		
+		<Logger name="org.main.logic.WorkaroundsAPIImpl" level="TRACE" additivity="false">
+			<AppenderRef ref="RollingFileAppender" />
+			<AppenderRef ref="STDOUT"></AppenderRef>
+		</Logger>
+		
+		<Logger name="org.main.sei.OSMServiceImpl" level="TRACE" additivity="false">
+			<AppenderRef ref="RollingFileAppender" />
+			<AppenderRef ref="STDOUT"></AppenderRef>
+		</Logger>
+		
+		<Logger name="org.main.sei.OSMServiceFactory" level="TRACE" additivity="false">
+			<AppenderRef ref="RollingFileAppender" />
+		</Logger>
+		
+		<Logger name="org.main.sei.XmlApiServiceImpl" level="TRACE" additivity="false">
+			<AppenderRef ref="RollingFileAppender" />
+		</Logger>
+		
+		<Logger name="org.main.sei.XmlApiServiceFactory" level="TRACE" additivity="false">
+			<AppenderRef ref="RollingFileAppender" />
+		</Logger>
+		
+		<Logger name="org.main.utils.CommonUtils" level="TRACE" additivity="false">
+			<AppenderRef ref="RollingFileAppender" />
+		</Logger>
+		
+		<Logger name="LastTaskLogger" level="TRACE" additivity="false">
+			<AppenderRef ref="LastTaskAppender" />
+		</Logger>
+		
+	</Loggers>
+</Configuration>
