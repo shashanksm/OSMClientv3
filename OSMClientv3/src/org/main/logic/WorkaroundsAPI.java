@@ -65,5 +65,7 @@ public interface WorkaroundsAPI {
 	public boolean manageBarsPatch(String orderID, String reference);
 	public boolean vampirePatch(String orderID);
 	public boolean timerDelayWA(String orderID);
+	public boolean iccidPatch(String orderId, String iccid);
+	//public boolean patchICCID(String orderId, String iccid);
 	
 }

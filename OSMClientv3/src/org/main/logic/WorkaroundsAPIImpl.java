@@ -21,6 +21,7 @@ import javax.xml.xpath.XPathConstants;
 import javax.xml.xpath.XPathExpressionException;
 import javax.xml.xpath.XPathFactory;
 
+import org.w3c.dom.Attr;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.NodeList;
@@ -3673,6 +3674,159 @@ public class WorkaroundsAPIImpl implements WorkaroundsAPI{
 		String path = "//OrderData/FixedService";
 		String nodeName = "DelayTime";
 		updateOrderAddNode(orderID, rCreationView, path, nodeName, nodeValue);
+		return ret;
+	}
+
+	@Override
+	public boolean iccidPatch(String orderId, String iccid) {
+		boolean ret = false;
+		// TODO Auto-generated method stub
+		String view = "SOM_ProvisionOrderFulfillment_OrderDetails";
+		
+		logger.trace("iccidPatch called for order-id : "+orderId+" and iccid : "+iccid);
+		
+		logger.trace("requesting xml template : ");
+		
+		Document requestDocument = null;
+		Document responseDocument = null;
+		HttpPost request;
+		CloseableHttpResponse response = null;
+		String requestBody;
+		try {
+			requestDocument = DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(new InputSource(new FileInputStream(service.getXmlRequestTemplate("req_getOrder.xml"))));
+			logger.trace("parsing and generating getOrderXML");
+			Element root = requestDocument.getDocumentElement();
+			
+			NodeList orderIdElements = root.getElementsByTagName("ord:OrderId");
+			
+			if(orderIdElements.getLength() == 1){
+				orderIdElements.item(0).setTextContent(orderId);
+			}else{
+				logger.error("CAUTION : number of order-id elements is other than 1");
+				ret=false;
+			}
+			
+			NodeList viewElements = root.getElementsByTagName("ord:View");
+			if(viewElements.getLength() == 1){
+				viewElements.item(0).setTextContent(view);
+			}else{
+				logger.error("CAUTION : number of view elements is other than 1");
+				ret=false;
+			}
+			
+			requestBody = CommonUtils.stringXML(requestDocument);
+			
+			
+			
+			request = service.prepareRequest(requestBody, "GetOrder");
+			
+			logger.trace("invoking soap-action");
+			
+			response = (CloseableHttpResponse) service.sendRequest(request);
+			
+			if(response.getStatusLine().getStatusCode() == 200){
+				
+				
+				responseDocument = DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(new InputSource(response.getEntity().getContent()));
+				logger.trace("extracting EBM data");
+				
+				Element ebmElement = getEBMData(responseDocument.getDocumentElement());
+				
+				if(ebmElement!=null){
+					
+					logger.trace("adding iccid element");
+					
+					XPath xpath = XPathFactory.newInstance().newXPath();
+					String expression = "//*[local-name()=\"ItemReference\"]/*[local-name()=\"ClassificationCode\" and contains(text(),\"SIM Card\") and @listID=\"FulfillmentItemCode\"]/../../*[local-name()=\"ProvisioningOrderSchedule\"]";
+					
+					try {
+						NodeList nodes = (NodeList) xpath.compile(expression).evaluate(ebmElement, XPathConstants.NODESET);
+						logger.trace("number of reconnection nodes found : "+nodes.getLength());
+						for(int i = 0; i<nodes.getLength(); i++){
+							Element delement = (Element)nodes.item(i);
+							
+							//IMP!!!!
+							Element root1 = responseDocument.createElement("provord:ProvisioningOrderItemInstance");
+							
+							Element identificationNode = responseDocument.createElement("corecom:Identification");
+							Attr attr = responseDocument.createAttribute("xmlns:corecom");
+							attr.setValue("http://xmlns.oracle.com/EnterpriseObjects/Core/Common/V2");
+							identificationNode.setAttributeNodeNS(attr);
+							Element idElement = responseDocument.createElement("corecom:ID");
+							idElement.setTextContent(iccid);
+							identificationNode.appendChild(idElement);
+							root1.appendChild(identificationNode);
+							
+							
+							delement.appendChild(root1);
+							
+							
+							
+						}
+					} catch (XPathExpressionException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
+					
+					logger.trace("aborting order");
+					
+					ret = abortOrder(orderId);
+					
+					if(ret){
+						
+						logger.trace("proceeding to recreate");
+						
+						
+						
+						//
+						//FileOutputStream out = new FileOutputStream("request.xml");
+						//CommonUtils.printXML(responseDocument.getDocumentElement(), out);
+						
+						//out.close();
+						ret = createOrder(responseDocument);
+						
+					}else{
+						logger.error("AbortOrder failed. did not recreate order");
+						return false;
+					}	
+					
+					
+				}else{
+					logger.error("EBM Element not found. did not abort the order or recreate the order");
+					return false;
+				}
+				
+				
+			}else{
+				logger.error("invalid response received from server");
+				return false;
+			}
+		
+			
+		} catch (FileNotFoundException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (SAXException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (ParserConfigurationException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (TransformerException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}finally {
+			try {
+				response.close();
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
+		
 		return ret;
 	}
 
