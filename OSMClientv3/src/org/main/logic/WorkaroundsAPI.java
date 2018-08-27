@@ -57,6 +57,7 @@ public interface WorkaroundsAPI {
 	
 	//Misc
 	public String getPTPIDs(String reference);
+	//public String getOD
 	public boolean addServiceIDPatch(String orderId, String task, String serviceId);
 	public boolean pppUsernamePasswordPatch(String orderId, String task, String uname, String pwd);
 	public String getASAPError(String orderID, String task);
@@ -67,5 +68,7 @@ public interface WorkaroundsAPI {
 	public boolean timerDelayWA(String orderID);
 	public boolean iccidPatch(String orderId, String iccid);
 	//public boolean patchICCID(String orderId, String iccid);
+	public boolean fluimpatch(String orderID, String product, String action);
+	public boolean daviesm5(String orderId);
 	
 }

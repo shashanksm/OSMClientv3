@@ -86,8 +86,53 @@ public class Application {
 						FileOutputPublishingUnit.publishData(System.getProperty("user.name")+","+orderID+","+operation+","+CommonUtils.getDate()+","+status);
 					}
 					break;
+				case "daviesm5":
+					//some processing
+					for(int i = 0; i<inputSet.size(); i++){
+						String status = "unsuccessful";
+						if(inputSet.toArray()[i] != null && !inputSet.toArray()[i].equals("")){
+							System.out.println("applying workaround for order-id : "+(String)inputSet.toArray()[i]);
+							
+							String unparsedString = (String)inputSet.toArray()[i];
+							String[] parsedStrings = unparsedString.split("[\t,]+");
+							orderID = parsedStrings[0];
+							
+							boolean result = workaroundsAPI.daviesm5(orderID);
+							if(result){
+								status="successful";
+							}
+						}else{
+							status="unsuccessful";
+						}
+						System.out.println("Status : "+status);
+						
+						FileOutputPublishingUnit.publishData(System.getProperty("user.name")+","+orderID+","+operation+","+CommonUtils.getDate()+","+status);
+					}
+					break;
 					
 				case "abort":
+					for(int i = 0; i<inputSet.size(); i++){
+						String status = "unsuccessful";
+						if(inputSet.toArray()[i] != null && !inputSet.toArray()[i].equals("")){
+							System.out.println("applying workaround for order-id : "+(String)inputSet.toArray()[i]);
+							
+							String unparsedString = (String)inputSet.toArray()[i];
+							String[] parsedStrings = unparsedString.split("[\t,]+");
+							orderID = parsedStrings[0];
+							boolean result = workaroundsAPI.abortOrder(orderID);
+							if(result){
+								status="successful";
+							}
+						}else{
+							status="unsuccessful";
+						}
+						System.out.println("Status : "+status);
+						
+						FileOutputPublishingUnit.publishData(System.getProperty("user.name")+","+orderID+","+operation+","+CommonUtils.getDate()+","+status);
+					}
+					break;
+					
+				case "vampire_patch":
 					for(int i = 0; i<inputSet.size(); i++){
 						String status = "unsuccessful";
 						if(inputSet.toArray()[i] != null && !inputSet.toArray()[i].equals("")){
@@ -475,6 +520,58 @@ public class Application {
 						FileOutputPublishingUnit.publishData(System.getProperty("user.name")+","+orderID+","+operation+","+CommonUtils.getDate()+","+status+","+reference+",");
 					}
 					break;
+					
+					case "fluimpatch" :
+					
+					for(int i = 0; i<inputSet.size(); i++){
+						String status = "unsuccessful";
+						reference = "";
+						if(inputSet.toArray()[i] != null && !inputSet.toArray()[i].equals("")){
+							System.out.println("applying workaround for order-id : "+(String)inputSet.toArray()[i]);
+							
+							unparsedString = (String)inputSet.toArray()[i];
+							parsedStrings = unparsedString.split("[\t,]+");
+							orderID = parsedStrings[0];
+							String product = parsedStrings[1];
+							String action = parsedStrings[2];
+							boolean result = workaroundsAPI.fluimpatch(orderID,product,action);
+							if(result){
+								status="successful";
+							}
+						}else{
+							status="unsuccessful";
+						}
+						System.out.println("Status : "+status);
+						
+						FileOutputPublishingUnit.publishData(System.getProperty("user.name")+","+orderID+","+operation+","+CommonUtils.getDate()+","+status+","+reference+",");
+					}
+					break;
+					
+					case "failed_FL_Orders" :
+						
+						for(int i = 0; i<inputSet.size(); i++){
+							String status = "unsuccessful";
+							reference = "";
+							if(inputSet.toArray()[i] != null && !inputSet.toArray()[i].equals("")){
+								System.out.println("applying workaround for order-id : "+(String)inputSet.toArray()[i]);
+								
+								unparsedString = (String)inputSet.toArray()[i];
+								parsedStrings = unparsedString.split("[\t,]+");
+								orderID = parsedStrings[0];
+								String product = parsedStrings[1];
+								String action = parsedStrings[2];
+								boolean result = workaroundsAPI.fluimpatch(orderID,product,action);
+								if(result){
+									status="successful";
+								}
+							}else{
+								status="unsuccessful";
+							}
+							System.out.println("Status : "+status);
+							
+							FileOutputPublishingUnit.publishData(System.getProperty("user.name")+","+orderID+","+operation+","+CommonUtils.getDate()+","+status+","+reference+",");
+						}
+						break;
 					
 					case "TimerDelayWA" :
 					

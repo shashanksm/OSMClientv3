@@ -33,6 +33,7 @@ import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.joda.time.DateTime;
 import org.main.sei.OSMService;
 import org.main.sei.OSMServiceFactory;
 import org.main.sei.XmlApiService;
@@ -202,7 +203,7 @@ public class WorkaroundsAPIImpl implements WorkaroundsAPI{
 				+ "/*[local-name()=\"GetOrderResponse\"]"
 				+ "/*[local-name()=\"Data\"]"
 				+ "/*[local-name()=\"_root\"]"
-				+ " /*[local-name()=\"messageXmlData\"]"
+				+ " /*[local-name()=\"messageXmlData\" or local-name()=\"messageXMLdata\"]"
 				+ "/*[local-name()=\"ProcessProvisioningOrderEBM\"]";
 		
 		XPath xpath = XPathFactory.newInstance().newXPath();
@@ -235,13 +236,8 @@ public class WorkaroundsAPIImpl implements WorkaroundsAPI{
 		
 		
 		logger.trace("extracting using xpath");
-		String expression = "//*[local-name()=\"Envelope\"]"
-				+ " /*[local-name()=\"Body\"]"
-				+ "/*[local-name()=\"GetOrderResponse\"]"
-				+ "/*[local-name()=\"Data\"]"
-				+ "/*[local-name()=\"_root\"]"
-				+ "/*[local-name()=\"messageXmlData\" or local-name()=\"messageXMLdata\" or local-name()=\"messageXMLData\"]"
-				+ "/*[contains(local-name(), \"EBM\")]";
+		String expression = "//*[local-name()=\"messageXmlData\" or local-name()=\"messageXMLdata\" or local-name()=\"messageXMLData\"]"
+				+ "/*[contains(local-name(), \"ProcessProvisioningOrderEBM\")]";
 		
 		XPath xpath = XPathFactory.newInstance().newXPath();
 		
@@ -2759,7 +2755,7 @@ public class WorkaroundsAPIImpl implements WorkaroundsAPI{
 			
 			for(int i = 0; i<nodes.getLength(); i++){
 				sb.append("\n"+reference);
-				sb.append("\t"+nodes.item(i).getTextContent());
+				sb.append(","+nodes.item(i).getTextContent());
 			}
 			
 			return sb.toString();
@@ -3827,6 +3823,191 @@ public class WorkaroundsAPIImpl implements WorkaroundsAPI{
 			}
 		}
 		
+		return ret;
+	}
+
+	@Override
+	public boolean fluimpatch(String orderID, String product, String action) {
+		boolean ret = false;
+		// TODO Auto-generated method stub
+		
+		logger.trace("fluimpatch called for order-id : "+orderID);
+		
+		ret = queryOrderGeneric(orderID);
+		
+		if(ret == true) {
+			
+			ret = getCreationView(rOrderSource, rOrderType, rNamespace, rVersion);
+			
+			if(ret == true) {
+				
+				String view = rCreationView;
+				
+				logger.trace("requesting xml template : ");
+				
+				Document requestDocument = null;
+				Document responseDocument = null;
+				HttpPost request;
+				CloseableHttpResponse response = null;
+				String requestBody;
+				
+				try {
+					requestDocument = DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(new InputSource(new FileInputStream(service.getXmlRequestTemplate("req_getOrder.xml"))));
+					logger.trace("parsing and generating getOrderXML");
+					
+					Element root = requestDocument.getDocumentElement();
+					
+					NodeList orderIdElements = root.getElementsByTagName("ord:OrderId");
+					
+					if(orderIdElements.getLength() == 1){
+						orderIdElements.item(0).setTextContent(orderID);
+					}else{
+						logger.error("CAUTION : number of order-id elements is other than 1");
+						ret=false;
+					}
+					
+					NodeList viewElements = root.getElementsByTagName("ord:View");
+					if(viewElements.getLength() == 1){
+						viewElements.item(0).setTextContent(view);
+					}else{
+						logger.error("CAUTION : number of view elements is other than 1");
+						ret=false;
+					}
+					
+					requestBody = CommonUtils.stringXML(requestDocument);
+					
+					
+					
+					request = service.prepareRequest(requestBody, "GetOrder");
+					
+					logger.trace("invoking soap-action");
+					
+					response = (CloseableHttpResponse) service.sendRequest(request);
+					
+					if(response.getStatusLine().getStatusCode() == 200) {
+						responseDocument = DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(new InputSource(response.getEntity().getContent()));
+						logger.trace("extracting EBM data");
+						Element ebmElement = getEBMDataGeneric(responseDocument.getDocumentElement());
+						
+						if(ebmElement!=null) {
+							
+							logger.trace("changing OCB element");
+							XPath xpath = XPathFactory.newInstance().newXPath();
+							String expression = "//*[local-name()=\"UIMResponse\"]"
+									+ "/*[local-name()=\"calculateFixedServiceDifferenceResponse\"]"
+									+ "/*[local-name()=\"service\"]"
+									+"/*[local-name()=\"configurations\"]"
+									+ "/*[local-name()=\"configurationItems\"]"
+									+ "/*[local-name()=\"characteristics\"]"
+									+ "/*[local-name()=\"value\" and contains(text(),\""+product+"\")]"
+									+ "/../../*[local-name()=\"operation\"]";
+							
+							NodeList ocbnodes = (NodeList) xpath.evaluate(expression, ebmElement, XPathConstants.NODESET);
+							
+							if(ocbnodes.getLength() > 0) {
+								
+								Element ocbElement = (Element) ocbnodes.item(0);
+								ocbElement.setTextContent(action);
+								
+								expression = "//*[local-name()=\"PromisedDeliveryDateTime\"]";
+								NodeList promisedDateTimeNodes = (NodeList) xpath.evaluate(expression, ebmElement, XPathConstants.NODESET);
+								
+								if(promisedDateTimeNodes.getLength() > 0) {
+									int nodeCount = promisedDateTimeNodes.getLength();
+									logger.trace("promisedDateTimeNodes found : "+nodeCount+" elements found");
+									
+									for(int i = 0; i<nodeCount; i++) {
+										Element promisedDateTimeElement = (Element) promisedDateTimeNodes.item(i);
+										promisedDateTimeElement.setTextContent(DateTime.now().plusMinutes(5).toString());
+										logger.trace("promisedDateTime updated to "+DateTime.now().plusMinutes(5).toString());
+									}
+									
+								}else {
+									logger.error("promisedDateTimeNodes not found");
+								}
+								
+								ret = abortOrder(orderID);
+								if(ret == true) {
+									ret = createOrder(responseDocument);
+								}
+								
+							}else {
+								logger.error("no ocb elements found");
+							}
+							
+							//+ "/*[local-name()=\"\"]";
+							
+							
+						}else {
+							logger.error("EBM element not found");
+						}
+					}
+					
+					
+					
+				} catch (FileNotFoundException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				} catch (SAXException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				} catch (IOException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				} catch (ParserConfigurationException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				} catch (TransformerException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				} catch (XPathExpressionException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+				
+				
+				
+				
+				logger.trace("requesting xml template : ");
+				
+			}else {
+				logger.error("getCreationView failed");
+			}
+			
+		}else {
+			logger.error("queryOrderGeneric failed");
+		}
+		
+		
+		
+		
+		
+		return ret;
+	}
+
+	@Override
+	public boolean daviesm5(String orderId) {
+		boolean ret = false;
+		logger.traceEntry();
+		ret = queryOrderGeneric(orderId);
+		
+		
+		if(ret) {
+			
+			ret = acceptOrder(orderId, rOrderHistId);
+			if(ret) {
+				
+				ret = completeOrder(orderId, rOrderHistId, "Complete");
+				
+			}else {
+				logger.error("acceptOrder failed");
+			}
+			
+		}else {
+			logger.error("queryOrder failed");
+		}
+		
+		logger.traceExit();
 		return ret;
 	}
 
