@@ -8,6 +8,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.apache.commons.lang3.SystemUtils;
 import org.apache.http.Consts;
 import org.apache.http.HttpResponse;
 import org.apache.http.client.ClientProtocolException;
@@ -197,7 +198,12 @@ public class XmlApiServiceImpl implements XmlApiService {
 	@Override
 	public File getXmlRequestTemplate(String filename) {
 		// TODO Auto-generated method stub
-		return new File(requestFolderPath+"\\"+filename);
+		
+		if(SystemUtils.IS_OS_WINDOWS) {
+			return new File(requestFolderPath+"\\"+filename);
+		}else {
+			return new File(requestFolderPath+"/"+filename);
+		}
 	}
 
 	/* (non-Javadoc)

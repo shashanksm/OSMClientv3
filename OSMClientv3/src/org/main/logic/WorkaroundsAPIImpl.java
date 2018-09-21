@@ -27,8 +27,7 @@ import org.w3c.dom.Element;
 import org.w3c.dom.NodeList;
 import org.xml.sax.InputSource;
 import org.xml.sax.SAXException;
-
-
+import org.apache.commons.lang3.SystemUtils;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.logging.log4j.LogManager;
@@ -80,7 +79,13 @@ public class WorkaroundsAPIImpl implements WorkaroundsAPI{
 		
 		Properties properties = new Properties();
 		
+		
 		File input = new File(System.getProperty("user.dir")+"\\config\\repush-config.properties");
+		if(SystemUtils.IS_OS_WINDOWS) {
+			input = new File(System.getProperty("user.dir")+"\\config\\repush-config.properties");
+		}else {
+			input = new File(System.getProperty("user.dir")+"/config/repush-config.properties");
+		}
 		
 		if(!input.exists()){
 			logger.error("repush configuration file not found");
@@ -97,8 +102,8 @@ public class WorkaroundsAPIImpl implements WorkaroundsAPI{
 			String unparsedInputString5 = "";
 			
 			user = "admin";
-			throttleAvoidanceCount = 0;
-			throttleAvoidanceInterval=0;
+			throttleAvoidanceCount = 200;
+			throttleAvoidanceInterval=5000;
 			
 			if(properties.containsKey("repush-mnemonics")){
 				unparsedInputString1 = properties.getProperty("repush-mnemonics");
@@ -125,8 +130,8 @@ public class WorkaroundsAPIImpl implements WorkaroundsAPI{
 				networkTasks = unparsedInputString5.split(";");
 			}
 			
-			if(properties.containsKey("user")){
-				user = properties.getProperty("user");
+			if(properties.containsKey("user-name")){
+				user = properties.getProperty("user-name");
 			}
 			
 			if(properties.containsKey("throttle-avoidance-count")){
@@ -2254,6 +2259,11 @@ public class WorkaroundsAPIImpl implements WorkaroundsAPI{
 		try {
 			
 			FileInputStream input = new FileInputStream(System.getProperty("user.dir")+"\\config\\repush-config.properties");
+			if(SystemUtils.IS_OS_WINDOWS) {
+				input = new FileInputStream(System.getProperty("user.dir")+"\\config\\repush-config.properties");
+			}else {
+				input = new FileInputStream(System.getProperty("user.dir")+"/config/repush-config.properties");
+			}
 			Properties iprop = new Properties();
 			iprop.load(input);
 			
@@ -2276,7 +2286,12 @@ public class WorkaroundsAPIImpl implements WorkaroundsAPI{
 		
 			input.close();
 			
-			output = new FileOutputStream(System.getProperty("user.dir")+"\\config\\repush-config.properties");
+			//output = new FileOutputStream(System.getProperty("user.dir")+"\\config\\repush-config.properties");
+			if(SystemUtils.IS_OS_WINDOWS) {
+				output = new FileOutputStream(System.getProperty("user.dir")+"\\config\\repush-config.properties");
+			}else {
+				output = new FileOutputStream(System.getProperty("user.dir")+"/config/repush-config.properties");
+			}
 			Properties oprop = new Properties();
 			
 			oprop.setProperty("repush-mnemonics",unparsedInputString1);
@@ -3625,31 +3640,141 @@ public class WorkaroundsAPIImpl implements WorkaroundsAPI{
 	}
 
 	@Override
-	public boolean vampirePatch(String orderID) {
-		boolean ret = false;
-		logger.trace("vampirePatch called");
-		
-		String task = "PMS017.Vampire_Update_BE";
-		
-		ret = getOrderAtTask(orderID, task);
-		if(ret) {
-			
-			
-			
-			ret = getCreationView(rOrderSource, rOrderType, rNamespace, rVersion);
-			if(ret) {
+	public boolean vampirePatch(String orderID, String imei) {
+		// TODO Auto-generated method stub
+				boolean ret = false;
+				
+				logger.trace("vampirePatch called for order-id : "+orderID+" and IMEI : "+ imei);
+				
+				logger.trace("requesting xml template : ");
+				
+				Document requestDocument = null;
+				Document responseDocument = null;
+				HttpPost request;
+				CloseableHttpResponse response = null;
+				String requestBody;
 				
 				
-				ret = updateOrderwithUpdateData(orderID, rCreationView, "//*[]", "");
 				
+				try {
+					requestDocument = DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(new InputSource(new FileInputStream(service.getXmlRequestTemplate("req_getOrder.xml"))));
+					
+					logger.trace("parsing and generating getOrderXML");
+					Element root = requestDocument.getDocumentElement();
+					
+					NodeList orderIdElements = root.getElementsByTagName("ord:OrderId");
+					
+					if(orderIdElements.getLength() == 1){
+						orderIdElements.item(0).setTextContent(orderID);
+					}else{
+						logger.error("CAUTION : number of order-id elements is other than 1");
+						ret=false;
+					}
+					
+					NodeList viewElements = root.getElementsByTagName("ord:View");
+					if(viewElements.getLength() == 1){
+						viewElements.item(0).setTextContent("CreationTask_BlacklistManagement");
+					}else{
+						logger.error("CAUTION : number of view elements is other than 1");
+						ret=false;
+					}
+					
+					requestBody = CommonUtils.stringXML(requestDocument);
+					
+					
+					
+					request = service.prepareRequest(requestBody, "GetOrder");
+					
+					logger.trace("invoking soap-action");
+					
+					response = (CloseableHttpResponse) service.sendRequest(request);
+					
+					if(response.getStatusLine().getStatusCode() == 200){
+						
+						responseDocument = DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(new InputSource(response.getEntity().getContent()));
+						XPath xpath = XPathFactory.newInstance().newXPath();
+						
+						String expression = "//*[@index[not(. < //@index)]]";
+						//String retVal;
+						
+						NodeList nodes = (NodeList) xpath.compile(expression).evaluate(responseDocument.getDocumentElement(), XPathConstants.NODESET);
+						Element maxValueOfIndexElement = (Element)nodes.item(0);
+						
+						long maxValueOfIndex = Long.parseLong(maxValueOfIndexElement.getAttribute("index"));
+						
+						expression = "//*[local-name()=\"SubscriberData\"]"
+								+ "/*[local-name()=\"MSISDNData\"]"
+								+ "/*[local-name()=\"TelephoneNumber\"]";
+						xpath = XPathFactory.newInstance().newXPath();
+						nodes = (NodeList) xpath.compile(expression).evaluate(responseDocument.getDocumentElement(), XPathConstants.NODESET);
+						if(nodes.getLength()==1){
+							logger.trace("number of TelephoneNumber elements found : " + nodes.getLength());
+							Element msisdnelement = (Element)nodes.item(0);
+							String msisdn = msisdnelement.getTextContent();
+							if(!msisdn.startsWith("44")) {
+								logger.trace("before : "+msisdnelement.getTextContent());
+								String index = msisdnelement.getAttribute("index");
+								String data = "/OrderData/SubscriberData/MSISDNData/TelephoneNumber[@index=\""+index+"\"]";
+								ret = updateOrderwithDeleteData(orderID, "CreationTask_BlacklistManagement", data);
+								//msisdnelement.setTextContent("");
+								//updateOrderwithDeleteData(orderId, rCreationView, data);
+								//logger.trace("after : "+msisdnelement.getTextContent());
+							}
+							
+							
+//							}
+						}else{
+							logger.error("WARNING : number of msisdnelement elements found : " +nodes.getLength());
+						}
+						
+						expression = "//*[local-name()=\"SubscriberData\"]"
+								+ "/*[local-name()=\"IMEI\"]";
+						xpath = XPathFactory.newInstance().newXPath();		
+						nodes = (NodeList) xpath.compile(expression).evaluate(responseDocument.getDocumentElement(), XPathConstants.NODESET);
+						if(nodes.getLength() == 1) {
+							logger.trace("IMEI Element Found");
+							Element imeiElement = (Element)nodes.item(0);
+							imeiElement.setTextContent(imei);
+							
+						}else if(nodes.getLength() == 0) {
+							
+							logger.trace("IMEI Element not found");
+							logger.trace("adding the element");
+							expression = "//*[local-name()=\"SubscriberData\"]";
+							xpath = XPathFactory.newInstance().newXPath();		
+							nodes = (NodeList) xpath.compile(expression).evaluate(responseDocument.getDocumentElement(), XPathConstants.NODESET);
+							
+							ret = updateOrderAddNode(orderID, "CreationTask_BlacklistManagement", "/OrderData/SubscriberData", "IMEI", imei);
+							
+						}
+						
+						ret = repush(orderID, "PMS017.Vampire_Update_BE");
+					}else{
+						logger.error("GetOrder not successful");
+						ret=false;
+					}
+					
+				} catch (FileNotFoundException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				} catch (SAXException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				} catch (IOException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				} catch (ParserConfigurationException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				} catch (TransformerException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				} catch (XPathExpressionException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
 				
-			}
-			
-		}else {
-			logger.error("getOrderAtTask failed");
-		}
-		
-		return ret;
+				return ret;
 	}
 
 	@Override
@@ -3993,6 +4118,8 @@ public class WorkaroundsAPIImpl implements WorkaroundsAPI{
 		
 		
 		if(ret) {
+			
+			ret = assignOrder(orderId, rOrderHistId, user);
 			
 			ret = acceptOrder(orderId, rOrderHistId);
 			if(ret) {

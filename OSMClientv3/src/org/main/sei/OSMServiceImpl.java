@@ -4,7 +4,7 @@ package org.main.sei;
 import java.io.File;
 import java.io.IOException;
 
-
+import org.apache.commons.lang3.SystemUtils;
 import org.apache.http.HttpResponse;
 import org.apache.http.client.ClientProtocolException;
 import org.apache.http.client.methods.CloseableHttpResponse;
@@ -93,7 +93,12 @@ public class OSMServiceImpl implements OSMService{
 	@Override
 	public File getXmlRequestTemplate(String filename) {
 		// TODO Auto-generated method stub
-		return new File(requestFolderPath+"\\"+filename);
+		//return new File(requestFolderPath+"\\"+filename);
+		if(SystemUtils.IS_OS_WINDOWS) {
+			return new File(requestFolderPath+"\\"+filename);
+		}else {
+			return new File(requestFolderPath+"/"+filename);
+		}
 	}
 	
 	

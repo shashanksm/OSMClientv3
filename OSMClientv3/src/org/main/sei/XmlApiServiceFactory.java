@@ -11,6 +11,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.Properties;
 
+import org.apache.commons.lang3.SystemUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -27,6 +28,11 @@ public class XmlApiServiceFactory {
 		logger.trace("New xml api service Factory initiated");
 		XmlApiServiceFactory instance = new XmlApiServiceFactory(); 
 		instance.configPath = System.getProperty("user.dir")+"\\config\\xml-api-config.properties";
+		if(SystemUtils.IS_OS_WINDOWS) {
+			instance.configPath = System.getProperty("user.dir")+"\\config\\xml-api-config.properties";
+		}else {
+			instance.configPath = System.getProperty("user.dir")+"/config/xml-api-config.properties";
+		}
 		
 		FileOutputStream output = null;
 		try {
@@ -56,6 +62,11 @@ public class XmlApiServiceFactory {
 			Properties oprop = new Properties();
 			
 			oprop.setProperty("request-folder-path", new File(System.getProperty("user.dir")+"\\requests").getAbsolutePath());
+			if(SystemUtils.IS_OS_WINDOWS) {
+				instance.configPath = System.getProperty("user.dir")+"\\config\\xml-api-config.properties";
+			}else {
+				instance.configPath = System.getProperty("user.dir")+"/config/xml-api-config.properties";
+			}
 			oprop.setProperty("user-name", username);
 			oprop.setProperty("password", password);
 			oprop.setProperty("end-point-url", xmlapi);
@@ -73,6 +84,7 @@ public class XmlApiServiceFactory {
 			if(output != null){
 				try {
 					output.close();
+					
 					logger.trace("Factory initiated successfully");
 				} catch (IOException e) {
 					// TODO Auto-generated catch block
@@ -111,7 +123,8 @@ public class XmlApiServiceFactory {
 			logger.error("Exception : IO");
 			e.printStackTrace();
 		}
-		logger.trace("OSMService fetched successfully");
+		logger.trace("OSMService fetched successfully with user : "+service.getUsername() + " and password : "+service.getPassword());
+		
 		return service;
 	}
 }

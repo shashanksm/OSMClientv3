@@ -64,11 +64,14 @@ public interface WorkaroundsAPI {
 	public boolean updateOnCURWorkaround(String orderID, String task, String target);
 	public boolean updateOnCURBBPatch(String orderID, String task, String target);
 	public boolean manageBarsPatch(String orderID, String reference);
-	public boolean vampirePatch(String orderID);
+	public boolean vampirePatch(String orderID, String imei);
 	public boolean timerDelayWA(String orderID);
 	public boolean iccidPatch(String orderId, String iccid);
 	//public boolean patchICCID(String orderId, String iccid);
 	public boolean fluimpatch(String orderID, String product, String action);
 	public boolean daviesm5(String orderId);
+	
+	
+	
 	
 }

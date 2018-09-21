@@ -132,7 +132,7 @@ public class Application {
 					}
 					break;
 					
-				case "vampire_patch":
+				case "vampirePatch":
 					for(int i = 0; i<inputSet.size(); i++){
 						String status = "unsuccessful";
 						if(inputSet.toArray()[i] != null && !inputSet.toArray()[i].equals("")){
@@ -141,7 +141,8 @@ public class Application {
 							String unparsedString = (String)inputSet.toArray()[i];
 							String[] parsedStrings = unparsedString.split("[\t,]+");
 							orderID = parsedStrings[0];
-							boolean result = workaroundsAPI.abortOrder(orderID);
+							String imei = parsedStrings[1];
+							boolean result = workaroundsAPI.vampirePatch(orderID,imei);
 							if(result){
 								status="successful";
 							}

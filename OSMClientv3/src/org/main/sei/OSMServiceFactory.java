@@ -8,6 +8,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.Properties;
 
+import org.apache.commons.lang3.SystemUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.main.sei.OSMServiceImpl;
@@ -22,6 +23,11 @@ public class OSMServiceFactory {
 		logger.trace("New OSM Service Factory initiated");
 		OSMServiceFactory instance = new OSMServiceFactory(); 
 		instance.configPath = System.getProperty("user.dir")+"\\config\\OSMService-config.properties";
+		if(SystemUtils.IS_OS_WINDOWS) {
+			instance.configPath = System.getProperty("user.dir")+"\\config\\OSMService-config.properties";
+		}else {
+			instance.configPath = System.getProperty("user.dir")+"/config/OSMService-config.properties";
+		}
 		
 		FileOutputStream output = null;
 		try {
@@ -38,6 +44,11 @@ public class OSMServiceFactory {
 			output = new FileOutputStream(instance.configPath);
 			Properties oprop = new Properties();
 			oprop.setProperty("request-folder-path", new File(System.getProperty("user.dir")+"\\requests").getAbsolutePath());
+			if(SystemUtils.IS_OS_WINDOWS) {
+				oprop.setProperty("request-folder-path", new File(System.getProperty("user.dir")+"\\requests").getAbsolutePath());
+			}else {
+				oprop.setProperty("request-folder-path", new File(System.getProperty("user.dir")+"/requests").getAbsolutePath());
+			}
 			oprop.setProperty("wsapi-path", wsapi);
 			oprop.setProperty("user-name", username);
 			oprop.setProperty("password", password);
